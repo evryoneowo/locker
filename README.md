@@ -56,10 +56,13 @@ cp .env.example .env
 ```bash
 python3 -m lockerbot
 ```
+or
+```bash
+cd lockerbot && python3 main.py
+```
 
 🎉 Congratulations - you're up and running!
 
 ## Security
 
 The bot’s database stores your passwords only in encrypted form. Only you can decrypt them using master-password. Also, the bot automatically deletes all messages that contain your passwords, so no one can steal them even if someone gains access to your Telegram account.
-
