@@ -1,10 +1,12 @@
 import os
 import base64
 from hashlib import sha256
+import hmac
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+# handlers.py must not call this directly. The encryption key should always be derived in real time by this module and never stored.
 def get_key(master_password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
     if not salt: salt = os.urandom(16)
 
@@ -20,6 +22,7 @@ def get_key(master_password: str, salt: bytes | None = None) -> tuple[bytes, byt
     key = kdf.derive(password_bytes)
     return key, salt
 
+# Encryption of services' passwords. This func can be called from handlers.py because it doesn't give secret data.
 def encrypt_password(master_password: str, password: str) -> tuple[bytes, bytes, bytes]:
     key, salt = get_key(master_password)
     
@@ -30,6 +33,7 @@ def encrypt_password(master_password: str, password: str) -> tuple[bytes, bytes,
 
     return encrypted, salt, nonce
 
+# Decryption of services' passwords.
 def decrypt_password(master_password: str, salt: bytes, encrypted_password: bytes, nonce: bytes) -> str:
     key, _ = get_key(master_password, salt)
 
@@ -38,6 +42,7 @@ def decrypt_password(master_password: str, salt: bytes, encrypted_password: byte
 
     return decrypted.decode()
 
+# Master password must be saved only in hashed form.
 def hash_password(password: str, salt: bytes | None = None) -> tuple[str, bytes]:
     if not salt: salt = os.urandom(16)
 
@@ -51,9 +56,11 @@ def hash_password(password: str, salt: bytes | None = None) -> tuple[str, bytes]
 
     return base64.urlsafe_b64encode(key).decode(), salt
 
+# Check master password.
 def check_password(password: str, salt: bytes, hashed: str) -> bool:
     new_hash, _ = hash_password(password, salt)
-    return new_hash == hashed
+    return hmac.compare_digest(new_hash, hashed)
 
+# Just converts bytes into string.
 def bytestostr(item: bytes) -> str:
     return base64.b64encode(item).decode()
