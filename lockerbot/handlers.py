@@ -11,8 +11,8 @@ async def helpcmd(msg: Message):
     await msg.answer('''<b>📃 Доступные команды</b>
 
 /help - список команд
-/master [pass] - установить мастер-пароль
-/add [service] [login] [pass] [masterpass] - добавить / изменить запись
+/master [pass] - установить мастер-пароль, gen в поле пароля для автоматической генерации
+/add [service] [login] [pass] [masterpass] - добавить / изменить запись, gen в поле пароля для автоматической генерации
 /get [service] [masterpass] - получить запись
 /services - показать все записанные сервисы
 /del [service] [masterpass] - удалить запись
@@ -24,7 +24,8 @@ async def startcmd(msg: Message):
 
     txt = '''<b>🔐 Locker</b>
 
-Удобный менеджер паролей. Предусмотрена <b>криптографическая</b> защита, а также ты можешь запустить свой инстанс бота, так как он имеет открытый <b>исходный код</b>!'''
+Удобный менеджер паролей. Предусмотрена <b>криптографическая</b> защита, а также ты можешь запустить свой инстанс бота, так как он имеет открытый <b>исходный код</b>!
+/help - список команд'''
 
     if not user:
         txt += '\n\nНапиши /master [pass] чтобы установить мастер-пароль.'
@@ -42,11 +43,19 @@ async def mastercmd(msg: Message):
         await msg.answer('❗️ <b>У тебя уже стоит мастер-пароль!</b>')
         return
     
-    if len(msg.text.split()) < 2:
+    if len(msg.text.split()) != 2:
         await msg.answer('❗️ <b>Синтаксис команды:</b> /master [pass]')
         return
 
-    hashed, salt = crypto.hash_password(msg.text.split()[1])
+    password = msg.text.split()[1]
+    
+    if password == 'gen':
+        password = crypto.gen_password()
+
+        await msg.answer(f'ℹ️ <b>Сгенерированный мастер-пароль:</b>\n<code>{password}</code>\n\nСохраните его!',
+                         reply_markup=keyboards.read.as_markup())
+
+    hashed, salt = crypto.hash_password(password)
 
     user = db.User(
         user_id = msg.from_user.id,
@@ -69,7 +78,7 @@ async def addcmd(msg: Message):
         await msg.answer('❗️ <b>У тебя нет мастер-пароля!</b> Используй /master [pass]')
         return
     
-    if len(msg.text.split()) < 5:
+    if len(msg.text.split()) != 5:
         await msg.answer('❗️ <b>Синтаксис команды:</b> /add [service] [login] [pass] [masterpass]')
         return
 
@@ -79,6 +88,12 @@ async def addcmd(msg: Message):
         await msg.answer('❗️ <b>Неверный мастер-пароль!</b>')
         return
     
+    if password == 'gen':
+        password = crypto.gen_password()
+
+        await msg.answer(f'ℹ️ <b>Сгенерированный пароль:</b>\n<code>{password}</code>',
+                         reply_markup=keyboards.read.as_markup())
+
     passw = db.session.query(db.Password).filter(db.Password.user_id == msg.from_user.id, db.Password.service == service).first()
 
     encrypted, salt, nonce = crypto.encrypt_password(master, password)
@@ -115,7 +130,7 @@ async def getcmd(msg: Message):
         await msg.answer('❗️ <b>У тебя нет мастер-пароля!</b> Используй /master [pass]')
         return
     
-    if len(msg.text.split()) < 3:
+    if len(msg.text.split()) != 3:
         await msg.answer('❗️ <b>Синтаксис команды:</b> /get [service] [masterpass]')
         return
 
@@ -160,7 +175,7 @@ async def delcmd(msg: Message):
         await msg.answer('❗️ <b>У тебя нет мастер-пароля!</b> Используй /master [pass]')
         return
     
-    if len(msg.text.split()) < 3:
+    if len(msg.text.split()) != 3:
         await msg.answer('❗️ <b>Синтаксис команды:</b> /del [service] [masterpass]')
         return
 
@@ -191,7 +206,7 @@ async def deletemyaccountcmd(msg: Message):
         await msg.answer('❗️ <b>У тебя нет аккаунта!</b> Используй /master [pass]')
         return
     
-    if len(msg.text.split()) < 2:
+    if len(msg.text.split()) != 2:
         await msg.answer('❗️ <b>Синтаксис команды:</b> /deletemyaccount [masterpass]')
         return
 

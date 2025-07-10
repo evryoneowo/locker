@@ -1,7 +1,11 @@
 import os
 import base64
-from hashlib import sha256
 import hmac
+import string
+import secrets
+
+from hashlib import sha256
+
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -64,3 +68,8 @@ def check_password(password: str, salt: bytes, hashed: str) -> bool:
 # Just converts bytes into string.
 def bytestostr(item: bytes) -> str:
     return base64.b64encode(item).decode()
+
+# Generates password.
+def gen_password(length=20):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))

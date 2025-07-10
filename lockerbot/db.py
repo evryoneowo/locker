@@ -32,7 +32,7 @@ class Password(Base):
     user = relationship('User', back_populates='passwords')
 
 load_dotenv()
-engine = create_engine(os.getenv('DATABASE_URL'), echo=True)
+engine = create_engine(os.getenv('DATABASE_URL'))
 
 Base.metadata.create_all(engine)
 
