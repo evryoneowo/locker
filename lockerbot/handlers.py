@@ -12,7 +12,7 @@ async def helpcmd(msg: Message):
 
 /help - список команд
 /master [pass] - установить мастер-пароль
-/add [service] [login] [pass] [masterpass] - добавить запись
+/add [service] [login] [pass] [masterpass] - добавить / изменить запись
 /get [service] [masterpass] - получить запись
 /services - показать все записанные сервисы
 /del [service] [masterpass] - удалить запись
@@ -78,22 +78,32 @@ async def addcmd(msg: Message):
     if not crypto.check_password(master, user.salt, user.password_hash):
         await msg.answer('❗️ <b>Неверный мастер-пароль!</b>')
         return
+    
+    passw = db.session.query(db.Password).filter(db.Password.user_id == msg.from_user.id, db.Password.service == service).first()
 
     encrypted, salt, nonce = crypto.encrypt_password(master, password)
 
-    new_password = db.Password(
-        user_id=user.user_id,
-        service=service,
-        login=login,
-        password_enc=encrypted,
-        salt=salt,
-        nonce=nonce
-    )
+    if passw:
+        passw.login = login
+        passw.password_enc = encrypted
+        passw.salt = salt
+        passw.nonce = nonce
+    else:
+        new_password = db.Password(
+            user_id=user.user_id,
+            service=service,
+            login=login,
+            password_enc=encrypted,
+            salt=salt,
+            nonce=nonce
+        )
 
-    db.session.add(new_password)
+        db.session.add(new_password)
     db.session.commit()
 
-    await msg.answer(f'✅ <b>Сервис {service} добавлен!</b>\n\nЗашифрованный пароль: <code>{crypto.bytestostr(encrypted)}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>\nNonce: <code>{crypto.bytestostr(nonce)}</code>\n\nТеперь ты можешь использовать /get [service] [masterpass] и /services')
+    action = 'изменен' if passw else 'добавлен'
+
+    await msg.answer(f'✅ <b>Сервис {service} {action}!</b>\n\nЗашифрованный пароль: <code>{crypto.bytestostr(encrypted)}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>\nNonce: <code>{crypto.bytestostr(nonce)}</code>')
 
 @router.message(Command('get'))
 async def getcmd(msg: Message):
