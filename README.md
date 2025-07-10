@@ -6,6 +6,8 @@ It has cryptographic protection. You can trust it, or easily deploy your own ins
 ## Main instance
 The main instance of the bot is https://t.me/lockerpassbot. 
 It has latest updates of the bot and works 24/7.
+> [!WARNING]
+> If you lost your master key you won't able to get your passwords!
 
 ## Using
 
