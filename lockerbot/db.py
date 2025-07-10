@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-from sqlalchemy import create_engine, Column, Integer, BigInteger, Text, LargeBinary, ForeignKey
+from sqlalchemy import create_engine, Column, Boolean, Integer, BigInteger, Text, LargeBinary, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 Base = declarative_base()
@@ -12,6 +12,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(BigInteger, unique=True, nullable=False)
+    togglecrypto = Column(Boolean, nullable=False)
     password_hash = Column(Text, nullable=False)
     salt = Column(LargeBinary, nullable=False)
 
