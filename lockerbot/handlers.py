@@ -33,7 +33,7 @@ async def startcmd(msg: Message):
         txt += '\n\nНапиши /master [pass] чтобы установить мастер-пароль.'
     
     await msg.answer(txt,
-                     reply_markup=keyboards.source.as_markup())
+                     reply_markup=keyboards.info.as_markup())
 
 @router.message(Command('master'))
 async def mastercmd(msg: Message):

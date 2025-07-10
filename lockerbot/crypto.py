@@ -54,7 +54,7 @@ def hash_password(password: str, salt: bytes | None = None) -> tuple[str, bytes]
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
-        iterations=100_000,
+        iterations=100000,
     )
     key = kdf.derive(password.encode())
 

@@ -7,8 +7,12 @@ read.row(InlineKeyboardButton(
     callback_data='read'
 ))
 
-source = InlineKeyboardBuilder()
-source.row(InlineKeyboardButton(
+info = InlineKeyboardBuilder()
+info.row(InlineKeyboardButton(
     text='📖 Исходный код',
     url='https://github.com/evryoneowo/locker'
+),       
+         InlineKeyboardButton(
+    text='📄 Криптография бота',
+    url='https://telegra.ph/Locker--Cryptography-07-10'
 ))
