@@ -1,8 +1,8 @@
 from aiogram import Router
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 
-from . import db, crypto
+from . import db, crypto, keyboards
 
 router = Router()
 
@@ -24,15 +24,18 @@ async def startcmd(msg: Message):
 
     txt = '''<b>🔐 Locker</b>
 
-Удобный менеджер паролей. Предусмотрена <b>криптографическая</b> защита, а также ты можешь запустить свой инстанс бота, так как он имеет открытый <a href="https://github.com/evryoneowo/locker"><b>исходный код</b></a>!'''
+Удобный менеджер паролей. Предусмотрена <b>криптографическая</b> защита, а также ты можешь запустить свой инстанс бота, так как он имеет открытый <b>исходный код</b>!'''
 
     if not user:
         txt += '\n\nНапиши /master [pass] чтобы установить мастер-пароль.'
     
-    await msg.answer(txt)
+    await msg.answer(txt,
+                     reply_markup=keyboards.source.as_markup())
 
 @router.message(Command('master'))
 async def mastercmd(msg: Message):
+    await msg.delete()
+
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
     if user:
@@ -55,10 +58,11 @@ async def mastercmd(msg: Message):
     db.session.commit()
 
     await msg.answer(f'✅ <b>Мастер-пароль установлен</b>\n\nХеш: <code>{hashed}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>\n\nТеперь ты можешь использовать /add [service] [login] [pass] [masterpass]')
-    await msg.delete()
 
 @router.message(Command('add'))
 async def addcmd(msg: Message):
+    await msg.delete()
+
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
     if not user:
@@ -90,10 +94,11 @@ async def addcmd(msg: Message):
     db.session.commit()
 
     await msg.answer(f'✅ <b>Сервис {service} добавлен!</b>\n\nЗашифрованный пароль: <code>{crypto.bytestostr(encrypted)}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>\nNonce: <code>{crypto.bytestostr(nonce)}</code>\n\nТеперь ты можешь использовать /get [service] [masterpass] и /services')
-    await msg.delete()
 
 @router.message(Command('get'))
 async def getcmd(msg: Message):
+    await msg.delete()
+
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
     if not user:
@@ -118,8 +123,8 @@ async def getcmd(msg: Message):
     
     decrypted = crypto.decrypt_password(master, password.salt, password.password_enc, password.nonce)
 
-    await msg.answer(f'<b>{service}</b>\n\nЛогин: <code>{password.login}</code>\nПароль: <code>{decrypted}</code>')
-    await msg.delete()
+    await msg.answer(f'<b>{service}</b>\n\nЛогин: <code>{password.login}</code>\nПароль: <code>{decrypted}</code>',
+                     reply_markup=keyboards.read.as_markup())
 
 @router.message(Command('services'))
 async def servicescmd(msg: Message):
@@ -137,6 +142,8 @@ async def servicescmd(msg: Message):
 
 @router.message(Command('del'))
 async def delcmd(msg: Message):
+    await msg.delete()
+
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
     if not user:
@@ -163,10 +170,11 @@ async def delcmd(msg: Message):
     db.session.commit()
 
     await msg.answer('✅ <b>Записи успешно удалены!</b>')
-    await msg.delete()
 
 @router.message(Command('deletemyaccount'))
 async def deletemyaccountcmd(msg: Message):
+    await msg.delete()
+
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id)
 
     if not user.first():
@@ -189,4 +197,8 @@ async def deletemyaccountcmd(msg: Message):
     db.session.commit()
 
     await msg.answer('✅ <b>Аккаунт успешно удален!</b>')
-    await msg.delete()
+
+@router.callback_query()
+async def on_cq(cq: CallbackQuery):
+    if cq.data == 'read':
+        await cq.message.delete()
