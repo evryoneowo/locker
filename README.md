@@ -1,7 +1,7 @@
 # Locker
 ## Description
-Locker is a password manager Telegram bot written with aiogram.
-It has cryptographic protection. You can trust it, or easily deploy your own instance to verify everything yourself.
+**Locker** is a password manager Telegram bot written with aiogram.
+It has **cryptographic protection**. You can trust it, or easily deploy your own instance to verify everything yourself.
 
 ## Main instance
 The main instance of the bot is https://t.me/lockerpassbot. 
@@ -67,4 +67,4 @@ cd lockerbot && python3 main.py
 
 ## Security
 
-The bot’s database stores your passwords only in encrypted form. Only you can decrypt them using master-password. Also, the bot automatically deletes all messages that contain your passwords, so no one can steal them even if someone gains access to your Telegram account.
+The cryptography of **Locker** is described in **[this text](https://telegra.ph/Locker--Cryptography-07-10).**
