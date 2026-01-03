@@ -11,8 +11,7 @@ It has latest updates of the bot and works 24/7.
 
 ## Using
 
-It\`s easy!
-
+### Manual
 1. Clone the repo:
 
 ```bash
@@ -61,6 +60,25 @@ python3 -m lockerbot
 or
 ```bash
 cd lockerbot && python3 main.py
+```
+
+### Docker
+1. Clone the repo:
+
+```bash
+git clone https://github.com/evryoneowo/locker && cd locker
+```
+
+2. Copy the .env example:
+```bash
+cp .env.example .env
+```
+
+3. Configure `.env` with your own settings
+
+4. Run the bot
+```bash
+docker compose up -d --build
 ```
 
 🎉 Congratulations - you're up and running!
