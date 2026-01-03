@@ -1,5 +1,4 @@
-aiogram
-sqlalchemy
-python-dotenv
-psycopg2-binary
-cryptography
+aiogram~=3.23.0
+cryptography~=46.0.0
+psycopg2-binary~=2.9.0
+python-dotenv~=1.2.0
