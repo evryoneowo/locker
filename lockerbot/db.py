@@ -12,7 +12,6 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(BigInteger, unique=True, nullable=False)
-    togglecrypto = Column(Boolean, nullable=False)
     password_hash = Column(Text, nullable=False)
     salt = Column(LargeBinary, nullable=False)
 

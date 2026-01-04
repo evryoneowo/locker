@@ -1,67 +1,70 @@
 from aiogram import Router
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
 from aiogram.filters import Command
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from . import db, crypto, keyboards
+from .menu import *
 
-router = Router()
-
-@router.message(Command('help'))
-async def helpcmd(msg: Message):
-    await msg.answer('''<b>📃 Доступные команды</b>
-
-/help - список команд
-/master [pass] - установить мастер-пароль, gen в поле пароля для автоматической генерации
-/newmaster [newpass] [oldpass] - установить новый мастер-пароль, gen в поле пароля для автоматической генерации
-/add [service] [login] [pass] [masterpass] - добавить / изменить запись, gen в поле пароля для автоматической генерации
-/get [service] [masterpass] - получить запись
-/services - показать все записанные сервисы
-/del [service] [masterpass] - удалить запись
-/deletemyaccount [masterpass] - удалить аккаунт
-/togglecrypto - вкл/выкл отображение криптографический данных''')
-
+@start
 @router.message(Command('start'))
-async def startcmd(msg: Message):
+async def startcmd(msg: Message, _=None):
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
     txt = '''<b>🔐 Locker</b>
 
-Удобный менеджер паролей. Предусмотрена <b>криптографическая</b> защита, а также ты можешь запустить свой инстанс бота, так как он имеет открытый <b>исходный код</b>!
-/help - список команд'''
+Удобный менеджер паролей. Предусмотрена <b>криптографическая</b> защита, а также Вы можете запустить свой инстанс бота, так как он имеет открытый <b>исходный код</b>!'''
 
     if not user:
-        txt += '\n\nНапиши /master [pass] чтобы установить мастер-пароль.'
+        txt += '\n\nУкажите мастер-пароль в настройках.'
+    
+    keyboard = start.keyboard(msg)
+    keyboard.row(InlineKeyboardButton(
+        text='📖 Исходный код',
+        url='https://github.com/evryoneowo/locker'
+    ),       
+             InlineKeyboardButton(
+        text='📄 Криптография бота',
+        url='https://telegra.ph/Locker--Cryptography-07-10'
+    ))
+
+
+    await msg.answer(txt,
+                     reply_markup=keyboard.as_markup())
+
+@settings
+async def on_settings(msg: Message, keyboard: InlineKeyboardBuilder):
+    await msg.answer('⚙️ <b>Настройки</b>',
+                     reply_markup=keyboard.as_markup())
+
+@manage
+async def on_manage(msg: Message, keyboard: InlineKeyboardBuilder):
+    user = db.session.query(db.User).filter(db.User.user_id == msg.chat.id).first()
+
+    if not user:
+        await msg.answer('У Вас не задан мастер-пароль')
+        return
+
+    txt = '<b>Сервисы:</b>\n\n'
+    for i in user.passwords:
+        txt += f'<code>{i.service}</code>\n'
     
     await msg.answer(txt,
-                     reply_markup=keyboards.info.as_markup())
+                     reply_markup=keyboard.as_markup())
 
-@router.message(Command('master'))
-async def mastercmd(msg: Message):
-    await msg.delete()
-
+@master.arg('Введите новый мастер-пароль')
+async def mastercmd(msg: Message, args):
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
     if user:
-        await msg.answer('❗️ <b>У тебя уже стоит мастер-пароль!</b>')
-        return
-    
-    if len(msg.text.split()) != 2:
-        await msg.answer('❗️ <b>Синтаксис команды:</b> /master [pass]')
-        return
+        return True
 
-    password = msg.text.split()[1]
-    
-    if password == 'gen':
-        password = crypto.gen_password()
-
-        await msg.answer(f'ℹ️ <b>Сгенерированный мастер-пароль:</b>\n<code>{password}</code>\n\nСохрани его!',
-                         reply_markup=keyboards.read.as_markup())
+    password = args[0]
 
     hashed, salt = crypto.hash_password(password)
 
     user = db.User(
         user_id = msg.from_user.id,
-        togglecrypto = True,
         password_hash = hashed,
         salt = salt
     )
@@ -69,33 +72,20 @@ async def mastercmd(msg: Message):
     db.session.add(user)
     db.session.commit()
 
-    await msg.answer(f'✅ <b>Мастер-пароль установлен</b>\n\nХеш: <code>{hashed}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>\n\nТеперь ты можешь использовать /add [service] [login] [pass] [masterpass]')
+    await msg.answer(f'✅ <b>Мастер-пароль установлен</b>\n\nХеш: <code>{hashed}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>')
+    
+    await master.cancel(msg)
+    return True
 
-@router.message(Command('newmaster'))
-async def newmastercmd(msg: Message):
-    await msg.delete()
-
+@master.arg('Введите старый мастер-пароль')
+async def newmastercmd(msg: Message, args):
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
-
-    if not user:
-        await msg.answer('❗️ <b>У тебя нет мастер пароля!</b>')
-        return
     
-    if len(msg.text.split()) != 3:
-        await msg.answer('❗️ <b>Синтаксис команды:</b> /newmaster [newpass] [oldpass]')
-        return
-    
-    password, master = msg.text.split()[1:]
+    password, master = args
 
     if not crypto.check_password(master, user.salt, user.password_hash):
         await msg.answer('❗️ <b>Неверный мастер-пароль!</b>')
         return
-    
-    if password == 'gen':
-        password = crypto.gen_password()
-
-        await msg.answer(f'ℹ️ <b>Сгенерированный новый мастер-пароль:</b>\n<code>{password}</code>\n\nСохрани его!',
-                         reply_markup=keyboards.read.as_markup())
     
     hashed, salt = crypto.hash_password(password)
 
@@ -112,28 +102,28 @@ async def newmastercmd(msg: Message):
     
     db.session.commit()
 
-    txt = f'✅ <b>Мастер-пароль изменен, пароли пересчитаны</b>'
-    
-    if user.togglecrypto:
-        txt += f'\n\nХеш: <code>{hashed}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>'
+    txt = f'✅ <b>Мастер-пароль изменен, пароли пересчитаны</b>\n\nХеш: <code>{hashed}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>'
 
     await msg.answer(txt)
+    return True
 
-@router.message(Command('add'))
-async def addcmd(msg: Message):
-    await msg.delete()
+@add.arg('Введите название сервиса')
+async def on_add_service(msg: Message, args):
+    return True
 
+@add.arg('Введите логин')
+async def on_add_login(msg: Message, args):
+    return True
+
+@add.arg('Введите пароль ("gen", чтобы сгенерировать)')
+async def on_add_paswwd(msg: Message, args):
+    return True
+
+@add.arg('Введите мастер-пароль')
+async def on_add_master(msg: Message, args):
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
-    if not user:
-        await msg.answer('❗️ <b>У тебя нет мастер-пароля!</b> Используй /master [pass]')
-        return
-    
-    if len(msg.text.split()) != 5:
-        await msg.answer('❗️ <b>Синтаксис команды:</b> /add [service] [login] [pass] [masterpass]')
-        return
-
-    service, login, password, master = msg.text.split()[1:]
+    service, login, password, master = args
 
     if not crypto.check_password(master, user.salt, user.password_hash):
         await msg.answer('❗️ <b>Неверный мастер-пароль!</b>')
@@ -169,28 +159,20 @@ async def addcmd(msg: Message):
 
     action = 'изменен' if passw else 'добавлен'
 
-    txt = f'✅ <b>Сервис {service} {action}!</b>'
-
-    if user.togglecrypto:
-        txt += f'\n\nЗашифрованный пароль: <code>{crypto.bytestostr(encrypted)}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>\nNonce: <code>{crypto.bytestostr(nonce)}</code>'
+    txt = f'✅ <b>Сервис {service} {action}!</b>\n\nЗашифрованный пароль: <code>{crypto.bytestostr(encrypted)}</code>\nСоль: <code>{crypto.bytestostr(salt)}</code>\nNonce: <code>{crypto.bytestostr(nonce)}</code>'
 
     await msg.answer(txt)
+    return True
 
-@router.message(Command('get'))
-async def getcmd(msg: Message):
-    await msg.delete()
+@get.arg('Введите название сервиса')
+async def on_get_service(msg: Message, args):
+    return True
 
+@get.arg('Введите мастер-пароль')
+async def on_get_master(msg: Message, args):
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
-    if not user:
-        await msg.answer('❗️ <b>У тебя нет мастер-пароля!</b> Используй /master [pass]')
-        return
-    
-    if len(msg.text.split()) != 3:
-        await msg.answer('❗️ <b>Синтаксис команды:</b> /get [service] [masterpass]')
-        return
-
-    service, master = msg.text.split()[1:]
+    service, master = args
 
     if not crypto.check_password(master, user.salt, user.password_hash):
         await msg.answer('❗️ <b>Неверный мастер-пароль!</b>')
@@ -199,43 +181,26 @@ async def getcmd(msg: Message):
     password = db.session.query(db.Password).filter(db.Password.user_id == msg.from_user.id, db.Password.service == service).first()
 
     if not password:
-        await msg.answer('❗️ <b>Нет такого пароля!</b> Используй /add [service] [login] [pass] [masterpass] чтобы создать.')
-        return
+        await msg.answer('❗️ <b>Нет такого пароля!</b>')
+        
+        return True
     
     decrypted = crypto.decrypt_password(master, password.salt, password.password_enc, password.nonce)
 
     await msg.answer(f'<b>{service}</b>\n\nЛогин: <code>{password.login}</code>\nПароль: <code>{decrypted}</code>',
                      reply_markup=keyboards.read.as_markup())
 
-@router.message(Command('services'))
-async def servicescmd(msg: Message):
+    return True
+
+@delete.arg('Введите название сервиса')
+async def on_del_service(msg: Message, args):
+    return True
+
+@delete.arg('Введите мастер-пароль')
+async def on_del_master(msg: Message, args):
     user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
 
-    if not user:
-        await msg.answer('❗️ <b>У тебя нет мастер-пароля!</b> Используй /master [pass]')
-        return
-    
-    txt = '<b>Сервисы:</b>\n\n'
-    for i in user.passwords:
-        txt += f'<code>{i.service}</code>\n'
-    
-    await msg.answer(txt)
-
-@router.message(Command('del'))
-async def delcmd(msg: Message):
-    await msg.delete()
-
-    user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
-
-    if not user:
-        await msg.answer('❗️ <b>У тебя нет мастер-пароля!</b> Используй /master [pass]')
-        return
-    
-    if len(msg.text.split()) != 3:
-        await msg.answer('❗️ <b>Синтаксис команды:</b> /del [service] [masterpass]')
-        return
-
-    service, master = msg.text.split()[1:]
+    service, master = args
 
     if not crypto.check_password(master, user.salt, user.password_hash):
         await msg.answer('❗️ <b>Неверный мастер-пароль!</b>')
@@ -245,56 +210,19 @@ async def delcmd(msg: Message):
 
     if not passwords:
         await msg.answer('❗️ <b>Нет таких записей!</b>')
-        return
+
+        return True
     
     passwords.delete()
     db.session.commit()
 
     await msg.answer('✅ <b>Записи успешно удалены!</b>')
 
-@router.message(Command('deletemyaccount'))
-async def deletemyaccountcmd(msg: Message):
-    await msg.delete()
+    return True
 
-    user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id)
+@handle(data == 'read')
+async def on_read(cq: CallbackQuery):
+    await cq.message.delete()
 
-    if not user.first():
-        await msg.answer('❗️ <b>У тебя нет аккаунта!</b> Используй /master [pass]')
-        return
-    
-    if len(msg.text.split()) != 2:
-        await msg.answer('❗️ <b>Синтаксис команды:</b> /deletemyaccount [masterpass]')
-        return
+register()
 
-    master = msg.text.split()[1]
-
-    if not crypto.check_password(master, user.first().salt, user.first().password_hash):
-        await msg.answer('❗️ <b>Неверный мастер-пароль!</b>')
-        return
-
-    db.session.query(db.Password).filter(db.Password.user_id == msg.from_user.id).delete()
-    user.delete()
-    
-    db.session.commit()
-
-    await msg.answer('✅ <b>Аккаунт успешно удален!</b>')
-
-@router.message(Command('togglecrypto'))
-async def togglecryptocmd(msg: Message):
-    user = db.session.query(db.User).filter(db.User.user_id == msg.from_user.id).first()
-
-    if not user:
-        await msg.answer('❗️ <b>У тебя нет аккаунта!</b> Используй /master [pass]')
-        return
-    
-    state = not user.togglecrypto
-    user.togglecrypto = state
-
-    db.session.commit()
-
-    await msg.answer(f'ℹ️ Отображение криптографических данных: <b>{"вкл" if state else "выкл"}</b>')
-
-@router.callback_query()
-async def on_cq(cq: CallbackQuery):
-    if cq.data == 'read':
-        await cq.message.delete()
