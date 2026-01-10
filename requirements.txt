@@ -1,7 +1,6 @@
-aiogram~=3.23.0
-aiogramui~=1.1.0
+aiogram~=3.24.0
+aiogramui~=1.2.0
 cryptography~=46.0.0
 psycopg2-binary~=2.9.0
 python-dotenv~=1.2.0
 sqlalchemy~=2.0.0
-
